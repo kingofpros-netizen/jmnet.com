@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JMNet - Social Network</title>
+  
+  <!-- Firebase App & Database SDKs (v9 Compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <style>
+    :root {
+      --bg-color: #18191a;
+      --card-bg: #242526;
+      --text-main: #e4e6eb;
+      --text-muted: #b0b3b8;
+      --primary: #1877f2;
+      --hover-bg: #3a3b3c;
+      --border-color: #3e4042;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+    }
+
+    /* Navbar */
+    .navbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 16px;
+      background-color: var(--card-bg);
+      border-bottom: 1px solid var(--border-color);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .nav-left { display: flex; align-items: center; gap: 10px; }
+    .logo-title { font-weight: bold; font-size: 1.3rem; color: #ffffff; }
+    .nav-center { display: flex; gap: 8px; }
+    .nav-tab {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      padding: 10px 20px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 8px;
+    }
+    .nav-tab.active, .nav-tab:hover {
+      background-color: var(--hover-bg);
+      color: var(--primary);
+    }
+    .nav-right { display: flex; align-items: center; gap: 10px; }
+    .user-avatar {
+      width: 36px;
+      height: 36px;
+      background: var(--primary);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+    }
+
+    /* Main Layout */
+    .app-container {
+      max-width: 680px;
+      margin: 20px auto;
+      padding: 0 12px;
+    }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Cards & Form Elements */
+    .card {
+      background: var(--card-bg);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+      border: 1px solid var(--border-color);
+    }
+    textarea {
+      width: 100%;
+      background: var(--hover-bg);
+      border: none;
+      color: var(--text-main);
+      padding: 12px;
+      border-radius: 8px;
+      resize: none;
+      height: 80px;
+      font-size: 1rem;
+      margin-bottom: 10px;
+    }
+    textarea:focus { outline: 1px solid var(--primary); }
+
+    .post-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .action-btn {
+      background: var(--hover-bg);
+      border: none;
+      color: var(--text-main);
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .action-btn:hover { background: #4e4f50; }
+    .action-btn.danger { background: #e41e3f; color: white; }
+    .btn-primary {
+      background: var(--primary);
+      border: none;
+      color: white;
+      padding: 8px 16px;
+      font-weight: bold;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .btn-primary:hover { opacity: 0.9; }
+
+    /* Media Preview Container */
+    #mediaPreviewContainer {
+      margin: 10px 0;
+      width: 100%;
+      max-height: 250px;
+      overflow: hidden;
+      border-radius: 8px;
+      background: #000;
+    }
+    video { width: 100%; height: 100%; object-fit: cover; }
+
+    /* Posts List */
+    .post-card {
+      background: var(--card-bg);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+      border: 1px solid var(--border-color);
+    }
+    .post-header {
+      font-weight: bold;
+      margin-bottom: 8px;
+      color: var(--primary);
+    }
+    .post-time {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: normal;
+      margin-left: 6px;
+    }
+
+    /* Ultra Cloud Layout */
+    .upload-zone {
+      margin: 16px 0;
+      text-align: center;
+      border: 2px dashed var(--border-color);
+      padding: 20px;
+      border-radius: 8px;
+    }
+    #cloudFileInput { display: none; }
+    .cloud-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 10px;
+      margin-top: 15px;
+    }
+    .cloud-item {
+      background: var(--hover-bg);
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      word-break: break-all;
+    }
+
+    /* Messenger UI */
+    .messenger-container {
+      height: 420px;
+      display: flex;
+      flex-direction: column;
+    }
+    .chat-header {
+      font-weight: bold;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border-color);
+      margin-bottom: 10px;
+    }
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-right: 5px;
+    }
+    .chat-bubble {
+      background: var(--hover-bg);
+      padding: 8px 12px;
+      border-radius: 12px;
+      max-width: 75%;
+      width: fit-content;
+    }
+    .chat-input-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .chat-input-row input {
+      flex: 1;
+      background: var(--hover-bg);
+      border: none;
+      color: white;
+      padding: 10px 14px;
+      border-radius: 20px;
+    }
+
+    /* Modal Overlay */
+    .hidden { display: none !important; }
+    .modal {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 200;
+    }
+    .modal-content {
+      background: var(--card-bg);
+      padding: 20px;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 500px;
+      text-align: center;
+    }
+    .modal-actions {
+      margin-top: 12px;
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header class="navbar">
+    <div class="nav-left">
+      <!-- Custom SVG Logo -->
+      <svg class="jmnet-logo" viewBox="0 0 100 100" width="40" height="40">
+        <circle cx="50" cy="50" r="48" fill="#1877f2" />
+        <path d="M 30 30 L 45 70 L 55 45 L 65 70 L 80 30" stroke="#ffffff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <circle cx="20" cy="50" r="5" fill="#00d2ff"/>
+      </svg>
+      <span class="logo-title">JMNet</span>
+    </div>
+
+    <div class="nav-center">
+      <button class="nav-tab active" onclick="switchTab('feed', event)">Feed</button>
+      <button class="nav-tab" onclick="switchTab('cloud', event)">Ultra Cloud</button>
+      <button class="nav-tab" onclick="switchTab('messenger', event)">Messenger</button>
+    </div>
+
+    <div class="nav-right">
+      <button class="action-btn" onclick="toggleLiveModal()">📺 Live</button>
+      <div class="user-avatar">JM</div>
+    </div>
+  </header>
+
+  <main class="app-container">
+
+    <!-- FEED TAB -->
+    <section id="tab-feed" class="tab-content active">
+      <div class="card post-box">
+        <textarea id="postInput" placeholder="What's on your mind? Share globally..."></textarea>
+        
+        <div id="mediaPreviewContainer" class="hidden">
+          <video id="webcamVideo" autoplay playsinline muted></video>
+        </div>
+
+        <div class="post-actions">
+          <div>
+            <button class="action-btn" onclick="toggleWebcam()">📷 Face Cam</button>
+            <button class="action-btn" onclick="togglePiP()">🖼️ PiP Mode</button>
+          </div>
+          <button class="btn-primary" onclick="publishPost()">Post</button>
+        </div>
+      </div>
+
+      <div id="feedList" class="feed-list"></div>
+    </section>
+
+    <!-- ULTRA CLOUD TAB -->
+    <section id="tab-cloud" class="tab-content">
+      <div class="card">
+        <h2>⚡ Ultra Cloud Storage</h2>
+        <p style="color: var(--text-muted); margin-bottom: 10px;">Zero-cost local & global file sync via Firebase Realtime Database.</p>
+        <div class="upload-zone">
+          <input type="file" id="cloudFileInput" multiple onchange="uploadToCloud(event)">
+          <label for="cloudFileInput" class="btn-primary">📤 Upload Files</label>
+        </div>
+        <div id="cloudStorageList" class="cloud-grid"></div>
+      </div>
+    </section>
+
+    <!-- MESSENGER TAB -->
+    <section id="tab-messenger" class="tab-content">
+      <div class="card messenger-container">
+        <div class="chat-header">Global Messenger Chat</div>
+        <div id="chatMessages" class="chat-messages"></div>
+        <div class="chat-input-row">
+          <input type="text" id="chatInput" placeholder="Write a message..." onkeypress="handleChatKey(event)">
+          <button class="btn-primary" onclick="sendMessage()">Send</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Live Screen Streaming Modal -->
+  <div id="liveModal" class="modal hidden">
+    <div class="modal-content">
+      <h3 style="margin-bottom: 12px;">📺 Live Screen Sharing</h3>
+      <div style="height: 250px; background: black; border-radius: 8px; overflow: hidden;">
+        <video id="screenVideo" autoplay playsinline muted></video>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-primary" onclick="startScreenShare()">Start Screen Share</button>
+        <button class="action-btn danger" onclick="stopScreenShare()">Stop Stream</button>
+        <button class="action-btn" onclick="toggleLiveModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    //--firebase configuration--
+    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyCcWO1_ps32Y2aRT3YmAVq9pQDOJyWAU4I",
+  authDomain: "jmnet-5312b.firebaseapp.com",
+  databaseURL: "https://jmnet-5312b-default-rtdb.firebaseio.com",
+  projectId: "jmnet-5312b",
+  storageBucket: "jmnet-5312b.firebasestorage.app",
+  messagingSenderId: "597570074378",
+  appId: "1:597570074378:web:d4dea809a81cc7a4d72cf3",
+  measurementId: "G-941ZJ20QPB"
+};
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let webcamStream = null;
+    let screenStream = null;
+
+    // --- Tab Switcher ---
+    function switchTab(tabName, evt) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+      
+      document.getElementById(`tab-${tabName}`).classList.add('active');
+      if (evt) evt.target.classList.add('active');
+    }
+
+    // --- Face Camera Feature ---
+    async function toggleWebcam() {
+      const container = document.getElementById('mediaPreviewContainer');
+      const video = document.getElementById('webcamVideo');
+
+      if (webcamStream) {
+        webcamStream.getTracks().forEach(track => track.stop());
+        webcamStream = null;
+        container.classList.add('hidden');
+      } else {
+        try {
+          webcamStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+          video.srcObject = webcamStream;
+          container.classList.remove('hidden');
+        } catch (err) {
+          alert("Camera access denied or unavailable.");
+        }
+      }
+    }
+
+    // --- Picture-in-Picture (PiP) Mode ---
+    async function togglePiP() {
+      const video = document.getElementById('webcamVideo');
+      if (!webcamStream) {
+        alert("Please turn on Face Cam first!");
+        return;
+      }
+      try {
+        if (document.pictureInPictureElement) {
+          await document.exitPictureInPicture();
+        } else {
+          await video.requestPictureInPicture();
+        }
+      } catch (err) {
+        console.error("PiP error: ", err);
+      }
+    }
+
+    // --- Live Screen Sharing ---
+    function toggleLiveModal() {
+      document.getElementById('liveModal').classList.toggle('hidden');
+    }
+
+    async function startScreenShare() {
+      const video = document.getElementById('screenVideo');
+      try {
+        screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+        video.srcObject = screenStream;
+      } catch (err) {
+        console.error("Screen sharing cancelled or failed: ", err);
+      }
+    }
+
+    function stopScreenShare() {
+      if (screenStream) {
+        screenStream.getTracks().forEach(track => track.stop());
+        screenStream = null;
+        document.getElementById('screenVideo').srcObject = null;
+      }
+    }
+
+    // --- Global Posting (Firebase Realtime DB) ---
+    function publishPost() {
+      const content = document.getElementById('postInput').value.trim();
+      if (!content) return;
+
+      db.ref('posts').push({
+        text: content,
+        timestamp: Date.now()
+      });
+
+      document.getElementById('postInput').value = '';
+    }
+
+    db.ref('posts').on('child_added', (snapshot) => {
+      const post = snapshot.val();
+      const feedList = document.getElementById('feedList');
+      
+      const postElement = document.createElement('div');
+      postElement.className = 'post-card';
+      postElement.innerHTML = `
+        <div class="post-header">Global User <span class="post-time">${new Date(post.timestamp).toLocaleTimeString()}</span></div>
+        <div class="post-body">${escapeHTML(post.text)}</div>
+      `;
+      feedList.prepend(postElement);
+    });
+
+    // --- Messenger Feature ---
+    function sendMessage() {
+      const input = document.getElementById('chatInput');
+      const message = input.value.trim();
+      if (!message) return;
+
+      db.ref('messages').push({
+        text: message,
+        timestamp: Date.now()
+      });
+
+      input.value = '';
+    }
+
+    function handleChatKey(e) {
+      if (e.key === 'Enter') sendMessage();
+    }
+
+    db.ref('messages').on('child_added', (snapshot) => {
+      const msg = snapshot.val();
+      const chatMessages = document.getElementById('chatMessages');
+      
+      const bubble = document.createElement('div');
+      bubble.className = 'chat-bubble';
+      bubble.textContent = msg.text;
+      
+      chatMessages.appendChild(bubble);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    });
+
+    // --- Ultra Cloud (Free Base64 Firebase Uploads) ---
+    function uploadToCloud(event) {
+      const files = event.target.files;
+
+      for (let file of files) {
+        const reader = new FileReader();
+
+        reader.onload = function(e) {
+          const fileData = e.target.result; // Convert file to Base64 data string
+
+          db.ref('cloud_files').push({
+            fileName: file.name,
+            fileSize: (file.size / 1024).toFixed(1) + ' KB',
+            fileData: fileData,
+            uploadedAt: Date.now()
+          });
+        };
+
+        reader.readAsDataURL(file);
+      }
+    }
+
+    db.ref('cloud_files').on('child_added', (snapshot) => {
+      const file = snapshot.val();
+      const list = document.getElementById('cloudStorageList');
+
+      const item = document.createElement('div');
+      item.className = 'cloud-item';
+      item.innerHTML = `
+        📁 <strong>${escapeHTML(file.fileName)}</strong><br>
+        <span style="color:var(--text-muted); font-size:0.75rem;">${file.fileSize}</span><br><br>
+        <a href="${file.fileData}" download="${escapeHTML(file.fileName)}" style="color:var(--primary); text-decoration:none; font-weight:bold;">📥 Download</a>
+      `;
+      list.appendChild(item);
+    });
+
+    // Utility: Sanitize User Inputs
+    function escapeHTML(str) {
+      return str.replace(/[&<>'"]/g, 
+        tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+      );
+    }
+  </script>
+</body>
+</html>
